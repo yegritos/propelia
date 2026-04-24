@@ -447,7 +447,8 @@ Genera la propuesta completa. Sin texto introductorio. Solo la propuesta.`;
         }),
       });
       const data = await res.json();
-      const text = data.content?.map(b => b.text || "").join("") || "";
+      console.log("Respuesta API:", JSON.stringify(data));
+const text = data.content?.map(b => b.text || "").join("") || "";
       if (!text) throw new Error();
       setProposal(text);
       const updated = { ...user, credits: user.credits - 1 };

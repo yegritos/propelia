@@ -1,9 +1,12 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_KEY
+);
 import { useState, useEffect } from "react";
 
 // ─── Simulated "DB" in memory ───────────────────────────────────────────────
-const DB = {
-  users: [], // { id, nombre, email, password, credits, plan }
-};
 
 const PLANS = [
   { id: "starter", name: "Starter", credits: 5, price: "$4.99 USD", color: "#6ee7b7", desc: "Ideal para probar" },
@@ -242,7 +245,7 @@ function Auth({ mode, onSwitch, onAuth }) {
 
   const handle = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
-  const submit = () => {
+  const submit = async () => {
     setError("");
     if (!form.email || !form.password) return setError("Completa todos los campos.");
     if (!isLogin && !form.nombre) return setError("Ingresa tu nombre.");
@@ -250,19 +253,30 @@ function Auth({ mode, onSwitch, onAuth }) {
     setLoading(true);
     setTimeout(() => {
       if (isLogin) {
-        const user = DB.users.find(u => u.email === form.email && u.password === form.password);
-        if (!user) { setError("Correo o contraseña incorrectos."); setLoading(false); return; }
-        onAuth(user);
+        const { data, error } = await supabase
+          .from('usuarios')
+          .select('*')
+          .eq('email', form.email)
+          .eq('password', form.password)
+          .single();
+        if (error || !data) { setError("Correo o contraseña incorrectos."); setLoading(false); return; }
+        onAuth(data);
       } else {
-        if (DB.users.find(u => u.email === form.email)) {
-          setError("Este correo ya está registrado."); setLoading(false); return;
-        }
-        const user = { id: uid(), nombre: form.nombre, email: form.email, password: form.password, credits: 3, plan: null };
-        DB.users.push(user);
-        onAuth(user);
+        const { data: existing } = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('email', form.email)
+          .single();
+        if (existing) { setError("Este correo ya está registrado."); setLoading(false); return; }
+        const { data, error } = await supabase
+          .from('usuarios')
+          .insert({ nombre: form.nombre, email: form.email, password: form.password, credits: 3 })
+          .select()
+          .single();
+        if (error || !data) { setError("Error al registrar. Intenta de nuevo."); setLoading(false); return; }
+        onAuth(data);
       }
-      setLoading(false);
-    }, 700);
+      setLoading(false);   }, 700);
   };
 
   return (
@@ -453,8 +467,7 @@ const text = data.content?.map(b => b.text || "").join("") || "";
       setProposal(text);
       const updated = { ...user, credits: user.credits - 1 };
       setUser(updated);
-      const idx = DB.users.findIndex(u => u.id === user.id);
-      if (idx > -1) DB.users[idx].credits = updated.credits;
+      await supabase.from('usuarios').update({ credits: updated.credits }).eq('id', user.id);
       setView("result");
     } catch {
       setView("form");

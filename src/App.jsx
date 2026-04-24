@@ -441,7 +441,7 @@ Genera la propuesta completa. Sin texto introductorio. Solo la propuesta.`;
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022",
           max_tokens: 1000,
           messages: [{ role: "user", content: prompt }],
         }),
